@@ -28,6 +28,31 @@ nrf.open_rx_pipe(1, pipes[0])
 nrf.start_listening()
 print("INFO: Radio listening")
 
+# LOGGER
+LOG_LEVEL=3
+# FATAL
+# ERROR
+# WARN
+# INFO
+# DEBUG
+# TRACE
+def logger(level, *args):
+    if level is "FATAL" and LOG_LEVEL >= 1:
+        print("FATAL:", *args)
+    elif level is "ERROR" and LOG_LEVEL >= 2:
+        print("ERROR:", *args)
+    elif level is "WARN" and LOG_LEVEL >= 2:
+        print("WARN:", *args)
+    elif level is "INFO" and LOG_LEVEL >= 2:
+        print("INFO:", *args)
+    elif level is "DEBUG" and LOG_LEVEL >= 2:
+        print("DEBUG:", *args)
+    elif level is "TRANCE" and LOG_LEVEL >= 2:
+        print("TRANCE:", *args)
+
+    else:
+        print(level, *args)
+
 def sendMessage():
     # TODO: check for ACK and retry
     # confirmed = False
@@ -54,6 +79,26 @@ def sendMessage():
     nrf.start_listening()
 
     # TODO: Wait for response with timeout, otherwise try again
+    startTime = utime.ticks_ms()
+    timeout = False
+    while not nrf.any() and not timeout:
+        if utime.ticks_diff(utime.ticks_ms(), startTime) > 250:
+            timeout = True
+    
+    if timeout:
+        logger("ERROR", "Timed out waiting for ACK")
+        # TODO: try sensing again if no ACK
+    
+    else:
+        # unpack
+        buf = nrf.recv()
+        deviceId, status = struct.unpack("is", buf)
+        logger("INFO", "Got response", deviceId, status)
+
+
+        # print response
+        logger("INFO")
+
 
     # TODO: Parse failed response
 
