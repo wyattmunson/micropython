@@ -1,7 +1,7 @@
 import utime
 import struct
 from nrf24l01 import NRF24L01
-import nrf24l01test
+
 from machine import Pin, SPI
 from utime import sleep
 
@@ -113,6 +113,6 @@ LED_PIN.value(0)
 print("START UP COMPLETE")
 # define pins
 # csn = Pin()
-nrf24l01test.responder()
+# nrf24l01test.responder()
 # while True:
 #     print("Running")
