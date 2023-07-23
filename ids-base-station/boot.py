@@ -30,25 +30,25 @@ print("INFO: Radio started without issue")
 print("INFO: Listening on %s"%(pipes[0]))
 
 # LOGGER
-LOG_LEVEL=3
-FATAL
-ERROR
-WARN
-INFO
-DEBUG
-TRACE
+LOG_LEVEL=5
+# FATAL
+# ERROR
+# WARN
+# INFO
+# DEBUG
+# TRACE
 def logger(level, *args):
     if level is "FATAL" and LOG_LEVEL >= 1:
         print("FATAL:", *args)
     elif level is "ERROR" and LOG_LEVEL >= 2:
         print("ERROR:", *args)
-    elif level is "WARN" and LOG_LEVEL >= 2:
+    elif level is "WARN" and LOG_LEVEL >= 3:
         print("WARN:", *args)
-    elif level is "INFO" and LOG_LEVEL >= 2:
+    elif level is "INFO" and LOG_LEVEL >= 4:
         print("INFO:", *args)
-    elif level is "DEBUG" and LOG_LEVEL >= 2:
+    elif level is "DEBUG" and LOG_LEVEL >= 5:
         print("DEBUG:", *args)
-    elif level is "TRANCE" and LOG_LEVEL >= 2:
+    elif level is "TRANCE" and LOG_LEVEL >= 6:
         print("TRANCE:", *args)
 
     else:
@@ -67,23 +67,37 @@ while True:
             # Attempt to unpack the buffer
             # Do not let failed unpacking crash program
             try:
-                print("INFO: Unpacking struct")
+                logger("DEBUG", "Unpacking struct")
                 # deviceId, stringer = struct.unpack("is", buf)
                 deviceId, timestamp = struct.unpack("ii", buf)
                 # print("Received:", deviceId, stringer[0])
                 logger("INFO", deviceId, timestamp)
             except:
                 print("ERR: Failed to unpack struct")
-        print("Got the ID", deviceId, timestamp)
+        logger("INFO", "Received payload:", deviceId, timestamp)
+
+        # IF deviceId = 0, then message was not received
+
+        # TODO: if the device id is not 0, then it's good
+
 
         # give sensor time to enter response mode
-        # utime.sleep_ms(10)
-        # nrf.stop_listening()
-        # try:
-        #     nrf.send(struct.pack("is", "deviceId", "ACK"))
-        # except OSError:
-        #     pass
-        # print("Sent ACK")
+        utime.sleep_ms(10)
+        nrf.stop_listening()
+        # TODO: Retry ACK
+        try:
+            logger("INFO", "Starting to send ACK")
+            print("The device id was", deviceId)
+            nrf.send(struct.pack("is", deviceId, "ACK"))
+            logger("INFO", "ACK sent")
+        except OSError:
+            logger("ERROR", "Failed to send ACK")
+            pass
+        except TypeError:
+            logger("ERROR", "Failed to pack response")
+            pass
+        
+        logger("INFO", "Past ACK try/except")
 
         # TODO: save response
         # recordMotion()
