@@ -4,6 +4,8 @@ from nrf24l01 import NRF24L01
 import nrf24l01test
 from machine import Pin, SPI
 from utime import sleep
+import time
+print(time.localtime())
 
 # PIN SETUP
 LED_PIN = Pin(25, Pin.OUT)
@@ -199,7 +201,29 @@ def sendMessage():
     # TODO: Parse failed response
 
 
-sendMessage()
+def anotherSendMessage():
+    tx_success = False
+    try:
+        logger("DEBUG", "** Beginning request.")
+        deviceId = 444555
+        sensorState = "OPEN"
+        # sensorState = sensorState.encode("utf-8")
+        # sensorState = sensorState.encode()
+        # byteArray = bytearray(sensorState)
+        timestamp = utime.ticks_ms()
+        # payload = struct.pack("isi", deviceId, sensorState, timestamp)
+        payload = struct.pack("ii", deviceId, timestamp)
+        nrf.send(payload)
+        tx_success = True
+        print("INFO: Tx success. Payload:", payload)
+        return True
+    except OSError:
+        print("ERROR: Tx failed. Error:", OSError)
+        return False
+        pass
+
+# sendMessage()
+anotherSendMessage()
 # print("INFO: Starting main loop")
 # while True:
 #     utime.sleep(1)
