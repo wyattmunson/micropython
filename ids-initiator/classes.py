@@ -138,9 +138,16 @@ class Communicator:
         # print(encoded_topic)
         # main_struct = struct.pack("i", deviceId)
 
+        stringer = "test"
+        stringer = stringer.encode()
+        print("ENCODED STRINGER", stringer)
+        stringer = bytearray(stringer)
+        print("ENGTH", len(stringer))
+        print("ENGTH", type(stringer))
 
         try:
             # self.nrf.send(struct.pack("ii", deviceId, timestamp))
+            self.nrf.send(struct.pack("ssss", stringer))
             # self.nrf.send(struct.pack("iissss", deviceId, timestamp, encoded_sensor_state))
             # self.nrf.send(struct.pack("4s", encoded_sensor_state))
             # self.nrf.send(dumped_payload)
@@ -154,13 +161,14 @@ class Communicator:
             # encoded = dumped.encode()
             # self.nrf.send(encoded)
             # self.logger("INFO", "Message sent")
-            bytes = bytearray()
-            for key, value in payload.items():
-                bytes += struct.pack("!h", len(key))
-                bytes += key.encode("utf-8")
-                bytes += struct.pack("!h", len(value))
-                bytes += value.encode("utf-8")
-            self.nrf.send(bytes)
+
+            # bytes = bytearray()
+            # for key, value in payload.items():
+            #     bytes += struct.pack("!h", len(key))
+            #     bytes += key.encode("utf-8")
+            #     bytes += struct.pack("!h", len(value))
+            #     bytes += value.encode("utf-8")
+            # self.nrf.send(bytes)
 
             
             print("SEND DONE", self.nrf.send_done())
