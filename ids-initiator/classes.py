@@ -8,7 +8,6 @@ class Communicator:
         self.addresses_are_set = False
         self.pins_configured = False
         self.pipes_open = False
-        print("Created")
     
 
     def logger(self, level, *args):
@@ -34,9 +33,6 @@ class Communicator:
         # check setPipes was set
         if not self.addresses_are_set:
             raise ValueError("Addresses are not set. Call setPipes() first.")
-        if not hasattr(self, "tx_address"):
-            print("ERROR: Call setPipes() to define transmit address")
-            raise ValueError("Transmit not set. See more information above.")
 
         try:
             spi = SPI(0, sck=Pin(sck), mosi=Pin(mosi), miso=Pin(miso))
@@ -77,7 +73,7 @@ class Communicator:
 
     def validate_address(self, tx, add_type):
         if not isinstance(tx, bytes):
-            raise ValueError("Error: Address is not a bytes datatype.")
+            raise TypeError("Error: Address is not a bytes datatype.")
 
         if len(tx) != 5:
             raise ValueError("Error: Address for %s should be exactly 5 bytes"%(add_type))
@@ -113,7 +109,7 @@ class Communicator:
     
 
     def send_message(self, device_id, sensor_state):
-        self.logger("DEBUG", "Transmitting message...")
+        self.logger("INFO", "Transmitting message...")
         if not self.pipes_open:
             raise ValueError("Pipes must be open before sending message. Call open_pipes() first.")
         
@@ -132,14 +128,68 @@ class Communicator:
             print("Unidentified error:", e)
 
         self.nrf.start_listening()
+    
 
+    # LISTEN - BASE STATION CLASSES
+    def incoming_message(self):
+        return self.nrf.any()
+    
 
-tx_a = b"\xe1\xf0\xf0\xf0\xf0"
-rx_a = b"\xd2\xf0\xf0\xf0\xf0"
+    def get_message(self):
+        while self.nrf.any():
+            buf = self.nrf.recv()
+            self.logger("DEBUG", "Got raw buffer:", buf)
 
-comm = Communicator()
-comm.set_addresses(tx_a, rx_a)
-comm.configure_pins(sck=2, mosi=7, miso=4, csn=3, ce=0)
-comm.open_pipes()
+            # TODO: Should this be separate?
+            try:
+                self.logger("DEBUG", "Unpacking struct...")
+            except Exception as e:
+                self.logger("ERROR", "Failed to unpack struct", e)
+        
+        # TODO: how does this return
+        pass 
 
-comm.send_message(123123, 77)
+        # Send ACK
+        utime.sleep_ms(10)
+        self.nrf.stop_listening()
+
+        # TODO: dynamically get device id from incoming request
+        device_id = 0
+        try:
+            self.logger("DEBUG", "Sending ACK...")
+            self.nrf.send(struct.pack("ii", device_id, 0))
+            self.logger("INFO", "ACK sent.")
+        except OSError:
+            self.logger("ERROR", "Failed to send ACK")
+        except TypeError:
+            self.logger("ERROR", "Failed to unpack struct")
+        except Exception as e:
+            self.logger("ERROR", "Encountered exception:", e)
+
+        self.nrf.start_listening()
+
+base_station_mode = False
+
+if not base_station_mode:
+    tx_a = b"\xe1\xf0\xf0\xf0\xf0"
+    rx_a = b"\xd2\xf0\xf0\xf0\xf0"
+
+    comm = Communicator()
+    comm.set_addresses(tx_a, rx_a)
+    comm.configure_pins(sck=2, mosi=7, miso=4, csn=3, ce=0)
+    comm.open_pipes()
+
+    comm.send_message(123123, 77)
+else:
+    # BASE STATION MODE
+    rx_a = b"\xe1\xf0\xf0\xf0\xf0"
+    tx_a = b"\xd2\xf0\xf0\xf0\xf0"
+
+    comm = Communicator()
+    comm.set_addresses(tx_a, rx_a)
+    comm.configure_pins(sck=2, mosi=7, miso=4, csn=3, ce=0)
+    comm.open_pipes()
+
+    while True:
+        if comm.incoming_message():
+            comm.get_message()
