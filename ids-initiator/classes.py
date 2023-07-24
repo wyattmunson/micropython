@@ -1,5 +1,7 @@
 import struct
 import utime
+import ujson
+import json
 from machine import Pin, SPI
 from nrf24l01 import NRF24L01
 
@@ -118,23 +120,49 @@ class Communicator:
         self.nrf.start_listening()
     
 
-    def send_message(self):
+    def send_message(self, device_id, payload):
         self.logger("DEBUG", "** Beginning request.")
         # BELOW does not seem to matter - not sure of use
         self.nrf.stop_listening()
+        # TODO: Dynamically get input
+        # TODO: get things other than strings
         deviceId = 444555
         timestamp = utime.ticks_ms()
-        # sensorState = "OPEN"
-        # # sensorState = sensorState.encode("utf-8")
-        # # sensorState = sensorState.encode()
-        # # byteArray = bytearray(sensorState)
-        # # payload = struct.pack("isi", deviceId, sensorState, timestamp)
-        # payload = struct.pack("ii", deviceId, timestamp)
-        # self.nrf.send(payload)
-        # tx_success = True
+
+        # dumped_payload = json.dumps(payload)
+        # binary = ' '.join(format(ord(letter), 'b') for letter in dumped_payload)
+        dumped_payload = json.dumps(payload).encode()
+
+        # encoded_topic = topic.encode()
+        # encoded_sensor_state = sensor_state.encode()
+        # print(encoded_topic)
+        # main_struct = struct.pack("i", deviceId)
+
+
         try:
-            self.nrf.send(struct.pack("ii", deviceId, timestamp))
-            self.logger("INFO", "Message sent")
+            # self.nrf.send(struct.pack("ii", deviceId, timestamp))
+            # self.nrf.send(struct.pack("iissss", deviceId, timestamp, encoded_sensor_state))
+            # self.nrf.send(struct.pack("4s", encoded_sensor_state))
+            # self.nrf.send(dumped_payload)
+
+            # another
+            # dumped = json.dumps(payload)
+            # formatter = str(len(dumped)) + "s"
+            # self.nrf.send(struct.pack(formatter, dumped))
+            # self.logger("INFO", "Message sent")
+            # dumped = "".join((ujson.dumps(payload), '\n'))
+            # encoded = dumped.encode()
+            # self.nrf.send(encoded)
+            # self.logger("INFO", "Message sent")
+            bytes = bytearray()
+            for key, value in payload.items():
+                bytes += struct.pack("!h", len(key))
+                bytes += key.encode("utf-8")
+                bytes += struct.pack("!h", len(value))
+                bytes += value.encode("utf-8")
+            self.nrf.send(bytes)
+
+            
             print("SEND DONE", self.nrf.send_done())
         except OSError as e:
             self.logger("ERROR", "Upastream error:", e)
@@ -191,5 +219,6 @@ rx_a = b"\xd2\xf0\xf0\xf0\xf0"
 comm.setAddress(tx_a, rx_a)
 comm.configureWireless(sck=2, mosi=7, miso=4, csn=3, ce=0)
 comm.open_pipes()
-comm.send_message()
+payload = {"deviceId": "123123123", "another": "tester"}
+comm.send_message(123456, payload)
 # comm.configureWireless(sck=2, mosi=7, miso=4, csn=3, ce=0)
