@@ -4,9 +4,10 @@ from machine import Pin, SPI
 from nrf24l01 import NRF24L01
 
 class Communicator:
-    def __init__(self, another):
-        self.pipesAreSet = False
-        self.another = another
+    def __init__(self):
+        self.addresses_are_set = False
+        self.pins_configured = False
+        self.pipes_open = False
         print("Created")
     
 
@@ -24,35 +25,24 @@ class Communicator:
             print("DEBUG:", *args)
         elif level is "TRACE" and LOG_LEVEL >= 6:
             print("TRACE:", *args)
-
         else:
             print(level, *args)
 
-    def printMessage(self, text):
-        print("Existing")
-        print("ANOTHER", self.another)
-        print("TEXT", text)
 
-
-    def configureWireless(self, sck, mosi, miso, csn, ce):
+    def configure_pins(self, sck, mosi, miso, csn, ce):
         self.logger("DEBUG", "Configuring NRF24L01 pins...")
         # check setPipes was set
-        if not self.pipesAreSet:
+        if not self.addresses_are_set:
             raise ValueError("Addresses are not set. Call setPipes() first.")
         if not hasattr(self, "tx_address"):
             print("ERROR: Call setPipes() to define transmit address")
             raise ValueError("Transmit not set. See more information above.")
-        # sck_pin = 3
+
         try:
-            # spi = SPI(0, sck=Pin(2), mosi=Pin(7), miso=Pin(4))
-            spi = SPI(0, sck=Pin(sck), mosi=Pin(mosi), miso=Pin(4))
-            cfg = {"spi": spi, "csn": 3, "ce": 0}
+            spi = SPI(0, sck=Pin(sck), mosi=Pin(mosi), miso=Pin(miso))
+            cfg = {"spi": spi, "csn": csn, "ce": ce}
         except ValueError as e:
-            # spi = "test"
-            print("Upstream error: ", e)
-            # TODO: in error show pin number and more dynamic error message
             upstream_error = str(e)
-            display_error = None
             if "SCK" in upstream_error:
                 raise ValueError("Pin %i is not a %s pin. Choose a different pin or verify pin number is correct."%(sck, "SCK"))
             if "MOSI" in upstream_error:
@@ -65,15 +55,12 @@ class Communicator:
                 raise ValueError("Pin %i is not a %s pin. Choose a different pin or verify pin number is correct."%(csn, "CSN"))
             raise ValueError("%s. The pin number provided is not used for that protocol. Choose a differnt pin or verify pin number."%(e))
 
-        # spi can be defined in "try"
-        # spi can be defined in "except" or raise Error
-        print(spi)
+        self.logger("DEBUG", "SPI configured:", spi)
 
         # setup NRF
         csn = Pin(cfg["csn"], mode=Pin.OUT, value=1)
         ce = Pin(cfg["ce"], mode=Pin.OUT, value=0)
         spi = cfg["spi"]
-        # nrf = NRF24L01(spi, csn, ce, payload_size=8)
         try:
             nrf = NRF24L01(spi, csn, ce, payload_size=8)
         except OSError as e:
@@ -81,61 +68,62 @@ class Communicator:
             self.logger("ERROR", "Unable to communicate with NRF24L01 module. Verify pins are connected correctly.")
             raise OSError("Unable to communicate with NRF24L01 module. Verify pins are connected correctly.")
         except Exception as e:
-            self.logger("ERROR", "Upstream error:", str(e))
-            self.logger("ERROR", "Unknown error occured.")
-            # self.nrf = False
+            self.logger("ERROR", "Unknown error occured. Upstream error:", str(e))
             raise ValueError("Unable to define nrf object")
+        
+        self.pins_configured = True
         self.nrf = nrf
-        # if not self.transmit or not self.receive:
-        #     print("ERROR: Transmit or recieve not set")
-        #     raise ValueError("Transmit not set")
-        # # receive = self.receive
-        # # transmit = self.transmit
-        # print("Configuring wireless network")
-        # if not self.receive:
-        #     print("Transmit address not set")
-        # else:
-        #     print("RECIEVE PIPE", self.receive)
+
+
+    def validate_address(self, tx, add_type):
+        if not isinstance(tx, bytes):
+            raise ValueError("Error: Address is not a bytes datatype.")
+
+        if len(tx) != 5:
+            raise ValueError("Error: Address for %s should be exactly 5 bytes"%(add_type))
+        
+        for byte in tx:
+            if not 0x00 <= byte < 0xFF:
+                raise ValueError("Error: Every byte in %s address should be a hexadecimal charachter"%(add_type))
     
 
-    def setAddress(self, transmit_address, receive_address):
+    def set_addresses(self, transmit_address, receive_address):
         self.logger("DEBUG", "Setting up addresses...")
-        # check for variables
-        # if not tra
-        print("Setting pipes")
+        self.validate_address(transmit_address, "transmit")
+        self.validate_address(receive_address, "receive")
+
+        # TODO: Provide handling for dec/oct/hex address formats
+
+        # Set addresses to self
         self.tx_address = transmit_address
         self.rx_address = receive_address
-        self.pipesAreSet = True
+        self.addresses_are_set = True
         self.logger("DEBUG", "Setup address completed")
-    
+
 
     def open_pipes(self):
-        if not hasattr(self, "nrf"):
-            print("None")
-            raise ValueError("NRF does not exist. Call SET_UP_PINS first")
+        # TODO: Does this need to be separate? Can this be done in configure_pins()?
+        if not self.pins_configured:
+            raise ValueError("Pins not configured. Call configure_pins() first")
+
+        self.pipes_open = True
         self.nrf.open_tx_pipe(self.tx_address)
         self.nrf.open_rx_pipe(1, self.rx_address)
         self.nrf.start_listening()
     
 
-    def send_message(self):
-        self.logger("DEBUG", "** Beginning request.")
-        # BELOW does not seem to matter - not sure of use
+    def send_message(self, device_id, sensor_state):
+        self.logger("DEBUG", "Transmitting message...")
+        if not self.pipes_open:
+            raise ValueError("Pipes must be open before sending message. Call open_pipes() first.")
+        
         self.nrf.stop_listening()
         deviceId = 444555
         timestamp = utime.ticks_ms()
-        # sensorState = "OPEN"
-        # # sensorState = sensorState.encode("utf-8")
-        # # sensorState = sensorState.encode()
-        # # byteArray = bytearray(sensorState)
-        # # payload = struct.pack("isi", deviceId, sensorState, timestamp)
-        # payload = struct.pack("ii", deviceId, timestamp)
-        # self.nrf.send(payload)
-        # tx_success = True
+
         try:
-            self.nrf.send(struct.pack("ii", deviceId, timestamp))
-            self.logger("INFO", "Message sent")
-            print("SEND DONE", self.nrf.send_done())
+            self.nrf.send(struct.pack("ii", device_id, sensor_state))
+            self.logger("INFO", "Message transmitted successfully")
         except OSError as e:
             self.logger("ERROR", "Upastream error:", e)
             self.logger("ERROR", "Failed to send")
@@ -144,52 +132,14 @@ class Communicator:
             print("Unidentified error:", e)
 
         self.nrf.start_listening()
-        
-        # utime.sleep(0.1)
-        # print("SEND DONE", self.nrf.send_done())
-        # utime.sleep(0.1)
-        # print("SEND DONE", self.nrf.send_done())
-        # utime.sleep(0.1)
-        # print("SEND DONE", self.nrf.send_done())
-        # utime.sleep(0.1)
-        # print("SEND DONE", self.nrf.send_done())
-        # utime.sleep(0.1)
-        # print("SEND DONE", self.nrf.send_done())
-        # utime.sleep(0.1)
-        # print("SEND DONE", self.nrf.send_done())
-
-        # try:
-        #     self.logger("DEBUG", "** Beginning request.")
-        #     deviceId = 444555
-        #     sensorState = "OPEN"
-        #     # sensorState = sensorState.encode("utf-8")
-        #     # sensorState = sensorState.encode()
-        #     # byteArray = bytearray(sensorState)
-        #     timestamp = utime.ticks_ms()
-        #     # payload = struct.pack("isi", deviceId, sensorState, timestamp)
-        #     payload = struct.pack("ii", deviceId, timestamp)
-        #     self.nrf.send(payload)
-        #     tx_success = True
-        #     print("INFO: Tx success. Payload:", payload)
-        #     return True
-        # except OSError:
-        #     print("ERROR: Tx failed. Error:", OSError)
-        #     return False
-        # except:
-        #     print("Any other error")
-
-        # END OF SEND MESSAGE
 
 
-
-comm = Communicator("test")
-thinger = comm.printMessage("TO PRINTER")
-# comm.setPipes()
 tx_a = b"\xe1\xf0\xf0\xf0\xf0"
 rx_a = b"\xd2\xf0\xf0\xf0\xf0"
-# comm.setAddress(b"\xd2\xf0\xf0\xf0\xf0", b"\xe1\xf0\xf0\xf0\xf0")
-comm.setAddress(tx_a, rx_a)
-comm.configureWireless(sck=2, mosi=7, miso=4, csn=3, ce=0)
+
+comm = Communicator()
+comm.set_addresses(tx_a, rx_a)
+comm.configure_pins(sck=2, mosi=7, miso=4, csn=3, ce=0)
 comm.open_pipes()
-comm.send_message()
-# comm.configureWireless(sck=2, mosi=7, miso=4, csn=3, ce=0)
+
+comm.send_message(123123, 77)
