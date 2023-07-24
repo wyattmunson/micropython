@@ -121,7 +121,7 @@ class Communicator:
     def send_message(self):
         self.logger("DEBUG", "** Beginning request.")
         # BELOW does not seem to matter - not sure of use
-        # self.nrf.stop_listening()
+        self.nrf.stop_listening()
         deviceId = 444555
         timestamp = utime.ticks_ms()
         # sensorState = "OPEN"
@@ -136,26 +136,28 @@ class Communicator:
             self.nrf.send(struct.pack("ii", deviceId, timestamp))
             self.logger("INFO", "Message sent")
             print("SEND DONE", self.nrf.send_done())
-        except OSError:
+        except OSError as e:
+            self.logger("ERROR", "Upastream error:", e)
             self.logger("ERROR", "Failed to send")
             pass
         except Exception as e:
             print("Unidentified error:", e)
-        except:
-            print("Final error")
+
+        self.nrf.start_listening()
         
-        utime.sleep(0.1)
-        print("SEND DONE", self.nrf.send_done())
-        utime.sleep(0.1)
-        print("SEND DONE", self.nrf.send_done())
-        utime.sleep(0.1)
-        print("SEND DONE", self.nrf.send_done())
-        utime.sleep(0.1)
-        print("SEND DONE", self.nrf.send_done())
-        utime.sleep(0.1)
-        print("SEND DONE", self.nrf.send_done())
-        utime.sleep(0.1)
-        print("SEND DONE", self.nrf.send_done())
+        # utime.sleep(0.1)
+        # print("SEND DONE", self.nrf.send_done())
+        # utime.sleep(0.1)
+        # print("SEND DONE", self.nrf.send_done())
+        # utime.sleep(0.1)
+        # print("SEND DONE", self.nrf.send_done())
+        # utime.sleep(0.1)
+        # print("SEND DONE", self.nrf.send_done())
+        # utime.sleep(0.1)
+        # print("SEND DONE", self.nrf.send_done())
+        # utime.sleep(0.1)
+        # print("SEND DONE", self.nrf.send_done())
+
         # try:
         #     self.logger("DEBUG", "** Beginning request.")
         #     deviceId = 444555
@@ -175,6 +177,8 @@ class Communicator:
         #     return False
         # except:
         #     print("Any other error")
+
+        # END OF SEND MESSAGE
 
 
 
