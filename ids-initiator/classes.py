@@ -5,13 +5,14 @@ from machine import Pin, SPI
 from nrf24l01 import NRF24L01
 
 class Communicator:
-    def __init__(self, payload_size=8, channel=46):
+    def __init__(self, payload_size=16, channel=46):
         self.addresses_are_set = False
         self.pins_configured = False
         self.pipes_open = False
         self.log_level = 5
         self.channel = channel
         self.payload_size = payload_size
+        self.chunk_size = 5 if payload_size > 16 else 15
         # TODO: get if sensor/base station, handle tx pipes accordingly
 
     def logger(self, level, *args):
@@ -125,10 +126,9 @@ class Communicator:
 
         encoded = json.dumps(json_payload).encode("utf-8")
         chunks = []
-        chunk_size = 5
 
-        for i in range(0, len(encoded), chunk_size):
-            chunks.append(encoded[i:i + chunk_size])
+        for i in range(0, len(encoded), self.chunk_size):
+            chunks.append(encoded[i:i + self.chunk_size])
         
         for chunk in chunks:
             print(chunk)
@@ -238,11 +238,12 @@ class Communicator:
                         index = buf.find(b"\x00")
                         chunked_message = chunked_message + buf[:index]
 
+        decoded = chunked_message.decode()
         self.logger("DEBUG", "Received message:", chunked_message)
 
         self.nrf.start_listening()
         
-        return chunked_message.decode()
+        return json.loads(decoded)
 
 
 #########################
@@ -261,17 +262,10 @@ if not base_station_mode:
     comm.open_pipes()
 
     # comm.send_topic(123123, 77)
-    comm.send_json_message({"d_id":1234567, "sensor": "OPEN"})
-
-    payload = {'test': 4, "another_message": "this is is a very long message that may have issues", "fake": False, "another_var": "HERE IS A VERY LONG STRING"}
-
-    print(len(payload))
-    # for x in range(payload)
-    
-    encoded_payload = json.dumps(payload).encode()
-    print("ENCODED PAYLOAD", encoded_payload, type(encoded_payload))
-    portion = encoded_payload[:8]
-    print("PORTION", portion, len(portion))
+    # payload = {"d_id":1234567, "sensor": "OPEN"}
+    payload = {"d_id":1234567, "sensor": "OPEN", "topic": "/thing/something/else"}
+    # payload = {"d_id":1234567, "sensor": "OPEN", "long_string": "Here is a very long string that takes up a lot", "a_bool": False, "emoji": "😏", "arrr":[1,2,"test"]}
+    comm.send_json_message(payload)
 
 else:
     # BASE STATION MODE
