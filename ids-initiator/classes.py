@@ -316,7 +316,17 @@ class Communicator:
                 while self.nrf.any():
                     buf = self.nrf.recv()
                     self.logger("DEBUG", "Got raw buffer:", buf)
-                    chunked_message = chunked_message + buf
+                    # chunked_message = chunked_message + buf
+                    
+                    # New line triggers end of message - only item in message
+                    if b"\n" in buf:
+                        self.logger("DEBUG", "New line seen")
+                        # index = buf.find(b"\n") + 1
+                        # chunked_message = chunked_message + buf[:index]
+                        end_of_tx = True
+                    else:
+                        index = buf.find(b"\x00")
+                        chunked_message = chunked_message + buf[:index]
 
                     # TODO: Should this be separate?
                     try:
@@ -324,12 +334,10 @@ class Communicator:
                     except Exception as e:
                         self.logger("ERROR", "Failed to unpack struct", e)
 
+
         self.logger("DEBUG", "Got binary", chunked_message)
-        encoded_string = binascii.b2a_base64(chunked_message)
-        self.logger("DEBUG", "Got encoded string from binary", encoded_string)
-        decoded_string = encoded_string.decode()
-        self.logger("DEBUG", "Got decoded string from base64", decoded_string)
-        return decoded_string
+        
+        return chunked_message.decode()
         
         # # TODO: how does this return
         # pass 
