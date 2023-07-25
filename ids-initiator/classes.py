@@ -1,5 +1,7 @@
 import struct
 import utime
+import json
+import binascii
 from machine import Pin, SPI
 from nrf24l01 import NRF24L01
 
@@ -117,8 +119,33 @@ class Communicator:
         deviceId = 444555
         timestamp = utime.ticks_ms()
 
+        sample_obj = { "device_id": 123123123, "sensor_state": "OPEN"}
+        text_obj = json.dumps(sample_obj)
+        print("TEXT OBJ", (text_obj))
+        chunked_array = []
+        # for x in range(len(text_obj)):
+        for x in range(0, len(text_obj), 8):
+            print("X is", x)
+            print(text_obj[x:x + 8])
+
+
         try:
-            self.nrf.send(struct.pack("ii", device_id, sensor_state))
+            # WORKING
+            # self.nrf.send(struct.pack("ii", device_id, sensor_state))
+            
+            # test_payload = {"deviceId": "123123", "sensor_state": "OPEN"}
+            # converted = bytearray(test_payload)
+            # payload = ["device_id", 123123, "sensor_state", "OPEN"]
+            # payload_bytes = bytes(payload)
+            # payload = ["device_id", "123123", "sensor_state", "OPEN"]
+            payload = "here is some rather longer text to send for"
+            # payload = payload.encode()
+            print(len(payload))
+            format_string = "I%ds" % len(payload)
+            # to_send = struct.pack(format_string, len(payload), payload.encode())
+            to_send = struct.pack("ssssssss", payload[0], payload[1], payload[2], payload[3], payload[4], payload[5], payload[6], payload[7])
+            
+            self.nrf.send(to_send)
             self.logger("INFO", "Message transmitted successfully")
         except OSError as e:
             self.logger("ERROR", "Upastream error:", e)
@@ -129,6 +156,102 @@ class Communicator:
 
         self.nrf.start_listening()
     
+    def send_message_chunked(self, json_payload):
+        self.logger("INFO", "Transmitting message with chunks...")
+        if not self.pipes_open:
+            raise ValueError("Pipes must be open before sending message. Call open_pipes() first.")
+        
+        self.nrf.stop_listening()
+        deviceId = 444555
+        timestamp = utime.ticks_ms()
+
+        sample_obj = { "device_id": 123123123, "sensor_state": "OPEN"}
+        text_obj = json.dumps(sample_obj)
+        print("TEXT OBJ:", text_obj)
+        text_obj = text_obj.encode()
+        print("TEXT OBJ ENCODED:", text_obj)
+        as_bytes = binascii.b2a_base64(text_obj)
+        print("TEXT OBJ AS BINARY:", as_bytes, type(as_bytes))
+        chunks = []
+        chunk_size = 20
+        for i in range(0, len(as_bytes), chunk_size):
+            chunks.append(as_bytes[i:i + chunk_size])
+        # chunks = chunk_data(as_bytes, 1024)
+        for chunk in chunks:
+            print(chunk)
+        chunked_array = []
+
+        self.logger("INFO", "Transmitting message in %i chunks..." % (len(chunks)))
+
+        for index, chunk in enumerate(chunks):
+            try:
+                self.logger("DEBUG", "Sending chunk %i..." % (index))
+                self.nrf.send(chunk)
+                self.logger("INFO", "Message transmitted successfully")
+            except OSError as e:
+                self.logger("ERROR", "Upastream error:", e)
+                self.logger("ERROR", "Failed to send")
+                pass
+            except Exception as e:
+                print("Unidentified error:", e)
+
+        self.nrf.start_listening()
+    
+
+
+
+    def send_chunked(self, message):
+        for x in range(len(message)):
+            try:
+                # WORKING
+                # self.nrf.send(struct.pack("ii", device_id, sensor_state))
+
+                # test_payload = {"deviceId": "123123", "sensor_state": "OPEN"}
+                # converted = bytearray(test_payload)
+                # payload = ["device_id", 123123, "sensor_state", "OPEN"]
+                # payload_bytes = bytes(payload)
+                # payload = ["device_id", "123123", "sensor_state", "OPEN"]
+                # payload = "here is some rather longer text to send for"
+                payload = message[x]
+                # payload = payload.encode()
+                print(len(payload))
+                format_string = "I%ds" % len(payload)
+                # to_send = struct.pack(format_string, len(payload), payload.encode())
+                to_send = struct.pack("ssssssss", payload[0], payload[1], payload[2], payload[3], payload[4], payload[5], payload[6], payload[7])
+
+                self.nrf.send(to_send)
+                self.logger("INFO", "Message transmitted successfully")
+                utime.sleep_ms(270)
+            except OSError as e:
+                self.logger("ERROR", "Upastream error:", e)
+                self.logger("ERROR", "Failed to send")
+                pass
+            except Exception as e:
+                print("Unidentified error:", e)
+
+    def send_topic(self, device_id, main_payload):
+        self.logger("INFO", "Transmitting message...")
+        if not self.pipes_open:
+            raise ValueError("Pipes must be open before sending message. Call open_pipes() first.")
+        
+        self.nrf.stop_listening()
+        deviceId = 444555
+        timestamp = utime.ticks_ms()
+
+        sample_obj = { "device_id": 123123123, "sensor_state": "OPEN"}
+        text_obj = json.dumps(sample_obj)
+        print("TEXT OBJ", (text_obj))
+        chunked_array = []
+        # for x in range(len(text_obj)):
+        for x in range(0, len(text_obj), 8):
+            print("X is", x)
+            chunked_array.append(text_obj[x:x + 8])
+        
+        self.send_chunked(chunked_array)
+        print("CHUNKED", chunked_array)
+        
+
+        self.nrf.start_listening()
 
     # LISTEN - BASE STATION CLASSES
     def incoming_message(self):
@@ -168,6 +291,52 @@ class Communicator:
 
         self.nrf.start_listening()
 
+    def get_chunked_message(self):
+        chunked_message = bytes()
+        end_of_tx = False
+        
+        while not end_of_tx:
+            if self.nrf.any():
+                while self.nrf.any():
+                    buf = self.nrf.recv()
+                    self.logger("DEBUG", "Got raw buffer:", buf)
+                    chunked_message = chunked_message + buf
+
+                    # TODO: Should this be separate?
+                    try:
+                        self.logger("DEBUG", "Unpacking struct...")
+                    except Exception as e:
+                        self.logger("ERROR", "Failed to unpack struct", e)
+
+        self.logger("DEBUG", "Got binary", chunked_message)
+        encoded_string = binascii.b2a_base64(chunked_message)
+        self.logger("DEBUG", "Got encoded string from binary", encoded_string)
+        decoded_string = encoded_string.decode()
+        self.logger("DEBUG", "Got decoded string from base64", decoded_string)
+        return decoded_string
+        
+        # # TODO: how does this return
+        # pass 
+
+        # # Send ACK
+        # utime.sleep_ms(10)
+        # self.nrf.stop_listening()
+
+        # # TODO: dynamically get device id from incoming request
+        # device_id = 0
+        # try:
+        #     self.logger("DEBUG", "Sending ACK...")
+        #     self.nrf.send(struct.pack("ii", device_id, 0))
+        #     self.logger("INFO", "ACK sent.")
+        # except OSError:
+        #     self.logger("ERROR", "Failed to send ACK")
+        # except TypeError:
+        #     self.logger("ERROR", "Failed to unpack struct")
+        # except Exception as e:
+        #     self.logger("ERROR", "Encountered exception:", e)
+
+        self.nrf.start_listening()
+
 base_station_mode = False
 
 if not base_station_mode:
@@ -179,7 +348,9 @@ if not base_station_mode:
     comm.configure_pins(sck=2, mosi=7, miso=4, csn=3, ce=0)
     comm.open_pipes()
 
-    comm.send_message(123123, 77)
+    # comm.send_message(123123, 77)
+    # comm.send_topic(123123, 77)
+    comm.send_message_chunked("mock_payload")
 else:
     # BASE STATION MODE
     rx_a = b"\xe1\xf0\xf0\xf0\xf0"
@@ -191,5 +362,11 @@ else:
     comm.open_pipes()
 
     while True:
-        if comm.incoming_message():
-            comm.get_message()
+        message = comm.get_chunked_message()
+        print("FINAL GOT", message)
+        # chunked_message = bytes()
+        # end_of_message = False
+
+        # while not end_of_message:
+        #     if comm.incoming_message():
+        #         chunked_message = comm.get_chunked_message()
