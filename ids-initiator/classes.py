@@ -1,6 +1,7 @@
 import struct
 import utime
 import json
+import sys
 import binascii
 from machine import Pin, SPI
 from nrf24l01 import NRF24L01
@@ -164,26 +165,41 @@ class Communicator:
         self.nrf.stop_listening()
         deviceId = 444555
         timestamp = utime.ticks_ms()
+        sample_obj = { "device_id": 1231231232, "sensor_state": "OPEN"}
+        encoded = json.dumps(sample_obj).encode("utf-8")
 
-        sample_obj = { "device_id": 123123123, "sensor_state": "OPEN"}
-        text_obj = json.dumps(sample_obj)
-        print("TEXT OBJ:", text_obj)
-        text_obj = text_obj.encode()
-        print("TEXT OBJ ENCODED:", text_obj)
-        as_bytes = binascii.b2a_base64(text_obj)
-        print("TEXT OBJ AS BINARY:", as_bytes, type(as_bytes))
+
+        # OLD SHIII
+        # sample_obj = { "device_id": 1231231232, "sensor_state": "OPEN"}
+        # text_obj = json.dumps(sample_obj)
+        # print("TEXT OBJ:", text_obj)
+        # text_obj = text_obj.encode("utf-8")
+        # print("TEXT OBJ ENCODED:", text_obj)
+        # as_bytes = binascii.b2a_base64(text_obj)
+        # print("TEXT OBJ AS BINARY:", as_bytes, type(as_bytes))
         chunks = []
-        chunk_size = 20
-        for i in range(0, len(as_bytes), chunk_size):
-            chunks.append(as_bytes[i:i + chunk_size])
+        chunk_size = 5
+        # This code works, but not with the library
+        for i in range(0, len(encoded), chunk_size):
+            chunks.append(encoded[i:i + chunk_size])
+        
+        packed_data = []
+        # for chunk in chunks:
+        #     packed = struct.pack("sssssssssssssssssss", 20)
+        #     packed_data.append(packed)
+
         # chunks = chunk_data(as_bytes, 1024)
         for chunk in chunks:
             print(chunk)
         chunked_array = []
 
+        # add newline termination
+        chunks.append(b"\n")
+
         self.logger("INFO", "Transmitting message in %i chunks..." % (len(chunks)))
 
         for index, chunk in enumerate(chunks):
+        # for index, chunk in enumerate(packed_data):
             try:
                 self.logger("DEBUG", "Sending chunk %i..." % (index))
                 self.nrf.send(chunk)
@@ -351,6 +367,17 @@ if not base_station_mode:
     # comm.send_message(123123, 77)
     # comm.send_topic(123123, 77)
     comm.send_message_chunked("mock_payload")
+
+    payload = {'test': 4, "another_message": "this is is a very long message that may have issues", "fake": False, "another_var": "HERE IS A VERY LONG STRING"}
+
+    print(len(payload))
+    # for x in range(payload)
+    
+    encoded_payload = json.dumps(payload).encode()
+    print("ENCODED PAYLOAD", encoded_payload, type(encoded_payload))
+    portion = encoded_payload[:8]
+    print("PORTION", portion, len(portion))
+
 else:
     # BASE STATION MODE
     rx_a = b"\xe1\xf0\xf0\xf0\xf0"
