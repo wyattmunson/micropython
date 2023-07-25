@@ -5,11 +5,13 @@ from machine import Pin, SPI
 from nrf24l01 import NRF24L01
 
 class Communicator:
-    def __init__(self):
+    def __init__(self, payload_size=8, channel=46):
         self.addresses_are_set = False
         self.pins_configured = False
         self.pipes_open = False
         self.log_level = 5
+        self.channel = channel
+        self.payload_size = payload_size
         # TODO: get if sensor/base station, handle tx pipes accordingly
 
     def logger(self, level, *args):
@@ -60,7 +62,7 @@ class Communicator:
         ce = Pin(cfg["ce"], mode=Pin.OUT, value=0)
         spi = cfg["spi"]
         try:
-            nrf = NRF24L01(spi, csn, ce, payload_size=8)
+            nrf = NRF24L01(spi, csn, ce, payload_size=self.payload_size, channel=self.channel)
         except OSError as e:
             self.logger("ERROR", "Upstream error:", str(e))
             self.logger("ERROR", "Unable to communicate with NRF24L01 module. Verify pins are connected correctly.")
