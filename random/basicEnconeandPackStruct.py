@@ -1,6 +1,9 @@
 import struct
 import json
 
+# this turns the object into a string then send that
+# the code to pack the object was not cooperating
+
 def pack_payload(payload):
   device_id = struct.pack('<I', payload['deviceId'])
   action = payload['action'].encode('utf-8')

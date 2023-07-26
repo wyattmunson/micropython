@@ -163,20 +163,9 @@ class Communicator:
             raise ValueError("Pipes must be open before sending message. Call open_pipes() first.")
         
         self.nrf.stop_listening()
-        deviceId = 444555
-        timestamp = utime.ticks_ms()
+        # send chunked message
 
-        sample_obj = { "device_id": 123123123, "sensor_state": "OPEN"}
-        text_obj = json.dumps(sample_obj)
-        print("TEXT OBJ", (text_obj))
-        chunked_array = []
-        # for x in range(len(text_obj)):
-        for x in range(0, len(text_obj), 8):
-            print("X is", x)
-            chunked_array.append(text_obj[x:x + 8])
-        
-        self.send_chunked(chunked_array)
-        print("CHUNKED", chunked_array)
+        # TODO: check if required keys exist
         
 
         self.nrf.start_listening()
@@ -244,6 +233,7 @@ class Communicator:
         self.nrf.start_listening()
         
         return json.loads(decoded)
+
 
 
 #########################

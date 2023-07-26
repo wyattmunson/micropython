@@ -1,0 +1,67 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="./connect.css" />
+    <style>
+      html {
+        /* font-family: "Franklin Gothic Medium", "Arial Narrow", Arial, sans-serif; */
+        font-family: Arial, sans-serif;
+        background-color: #222222;
+      }
+      body {
+        color: rgb(230, 230, 230);
+      }
+      /* .button-sb {
+        width: 100%;
+        padding: 0.5rem;
+      } */
+      .ssid-list {
+        width: 70%;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .ssid-list div {
+        background-color: #303030;
+      }
+      .ssid-div {
+        width: 30%;
+        min-width: 300px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="w3-container w3-blue">
+      <h1>Breezy Wi-Fi Setup</h1>
+    </div>
+    <form action="configure" method="post">
+      <!-- <div class="ssid-list"> -->
+      <div class="ssid-div">
+        <h2>
+          <span style="color: #fff"> Choose your network </span>
+        </h2>
+        <ul class="w3-ul w3-card-4">
+          <li>
+            <input type="radio" name="ssid" value="BEL" id="option-1-val" class="w3-radio" />
+            <label for="option-1-val">My home wifi</label>
+          </li>
+          <li>
+            <input type="radio" name="ssid" value="BE" id="option-2-val" class="w3-radio" />
+            <label for="option-2-val">My home wifi 5G</label>
+          </li>
+          <li>
+            <input type="radio" name="ssid" value="B" id="option-3-val" class="w3-radio" />
+            <label for="option-3-val">My home wifi</label>
+          </li>
+        </ul>
+        <div>
+          <label>Password</label>
+          <input class="w3-input" type="password" />
+        </div>
+        <p style="text-align: center">
+          <input type="submit" value="Submit" class="w3-button w3-round w3-blue w3-block" />
+        </p>
+      </div>
+    </form>
+  </body>
+</html>
